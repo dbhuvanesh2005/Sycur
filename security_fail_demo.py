@@ -11,4 +11,4 @@ def search_logs(user_input: str):
         command,
         shell=True,
         stdout=subprocess.PIPE,
-    )
+    )# Retest SYCUR automatic security scanning
