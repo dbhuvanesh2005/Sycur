@@ -1,46 +1,36 @@
-# SYCUR Local Policy RAG PoC
+# SYCUR — Six-Scanner Test Fixtures
 
-## Existing infrastructure
-- Ollama running locally
-- `bge-m3` installed for embeddings
-- `qwen3.5:9b` installed for answer generation
-- PostgreSQL database: `sycur_rag_poc`
-- `pgvector` extension and `policy_chunks` table already created
+This folder contains intentionally insecure, **static-analysis-only** fixtures for testing the six SYCUR scanners:
 
-## Project setup
-From the project root, with the virtual environment active:
+| Scanner | Fixture / expected signal |
+|---|---|
+| Gitleaks | `credentials.env` — synthetic GitHub-token-shaped string |
+| Semgrep | `vulnerable_app.py` — unsafe `eval` and shell execution |
+| Bandit | `vulnerable_app.py` — B307, B602 and hardcoded-password patterns |
+| Trivy | Whole folder — secret, vulnerable dependency and Terraform misconfiguration checks |
+| OSV-Scanner | `requirements.txt` — deliberately outdated package pins |
+| Checkov | `main.tf` — public S3 ACL and SSH open to the internet |
 
-```bash
-pip install -e .
-cp .env.example .env
-```
+## Safety
 
-Edit `.env` and set the PostgreSQL password. Never hardcode the password in Python.
+- These are deliberately vulnerable examples for an isolated test repository.
+- The credential-shaped value is synthetic and is **not a real credential**.
+- Do not run `vulnerable_app.py`.
+- Do not run `terraform apply` or deploy `main.tf`.
+- Do not use these fixtures in production.
+- Scan the folder as source; no vulnerable function is called by default.
 
-## Required document
-Keep this file at:
+## Suggested scanner commands
 
-```text
-documents/Access Management Policy.docx
-```
-
-## Ingest
+Run from this directory, using the versions/configuration installed in your environment:
 
 ```bash
-python -m scripts.ingest
+gitleaks detect --source . --no-git
+semgrep scan --config p/python --config p/security-audit .
+bandit -r vulnerable_app.py
+trivy fs --scanners vuln,misconfig,secret .
+osv-scanner scan source -r requirements.txt
+checkov -d . --framework terraform
 ```
 
-For the current policy document, the structure-aware parser should produce Purpose, Scope, AM-01 through AM-13, and Policy Sanctions.
-
-## Search + local LLM answer
-
-```bash
-python -m scripts.search "What does the policy require for least privilege on code repositories?"
-```
-
-Flow:
-
-```text
-Question -> bge-m3 -> pgvector similarity search -> top policy chunks -> qwen3.5:9b -> grounded structured answer
-```
-# Sycur
+Scanner rule IDs and exact findings depend on the installed scanner versions and rule packs. A scanner may report additional findings or use different wording.
